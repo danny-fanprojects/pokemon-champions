@@ -322,7 +322,8 @@
           <h4>📚 Glosario rápido <span class="level lv-pro">jerga que verás</span></h4>
           <div class="glos">
             <div class="gterm"><b>BST</b><span>Suma de todas las stats base. Orientativo del "poder bruto", NO de lo bueno que es en competitivo.</span></div>
-            <div class="gterm"><b>EVs / Naturaleza</b><span>Puntos y bonus que repartes para personalizar las stats. Definen el "set".</span></div>
+            <div class="gterm"><b>Stat Points (SP)</b><span>En Champions repartes <b>66 SP</b> (máx. 32 por stat, cada uno = +1) para subir las estadísticas. No hay IVs (fijos al máximo). Sustituyen a los "EVs".</span></div>
+            <div class="gterm"><b>Alineación (naturaleza)</b><span>Sube una stat ~10% y baja otra ~10%. En Champions se llama "Alineación de estadísticas".</span></div>
             <div class="gterm"><b>Set</b><span>La configuración: objeto + habilidad + 4 movimientos + EVs. Es lo que gana partidas.</span></div>
             <div class="gterm"><b>Intimidación</b><span>Habilidad que baja el Ataque de los rivales al entrar. Por eso Incineroar se usa tantísimo.</span></div>
             <div class="gterm"><b>Regulación</b><span>Las reglas vigentes (qué Pokémon son legales). Ahora: <b>M-B</b>. Cambia cada cierto tiempo.</span></div>
@@ -371,7 +372,7 @@
 
   <section>
     <h2 class="h2"><span class="dot"></span>Calculadora de daño</h2>
-    <div class="note">Elige <b>atacante</b>, su <b>movimiento</b> y el <b>defensor</b> y te dice cuánto daño hace y si lo debilita. Por defecto: nivel 50 (formato torneo), atacante con 252 EVs + naturaleza favorable y defensor sin EVs. Ajusta todo en <b>⚙️ Opciones avanzadas</b>. Para números 100% exactos antes de un torneo, contrasta con la <a href="https://calc.pokemonshowdown.com/" target="_blank" rel="noopener">calculadora oficial de Pokémon Showdown</a>.</div>
+    <div class="note">Elige <b>atacante</b>, su <b>movimiento</b> y el <b>defensor</b> y te dice cuánto daño hace y si lo debilita. Por defecto: nivel 50 (formato torneo), atacante con 32 SP + alineación favorable y defensor sin SP. <b>Champions usa Stat Points (SP): 66 en total, máx. 32 por stat, sin IVs.</b> Ajusta todo en <b>⚙️ Opciones avanzadas</b>. Para números 100% exactos antes de un torneo, contrasta con la <a href="https://calc.pokemonshowdown.com/" target="_blank" rel="noopener">calculadora oficial de Pokémon Showdown</a>.</div>
     <div class="calc">
       <div class="crow">
         <div class="fld"><label>⚔️ Atacante</label><input id="cAtk" type="text" list="monlist" placeholder="Ej: Garchomp" autocomplete="off"></div>
@@ -385,7 +386,7 @@
         <div class="advgrid">
           <div class="advcol">
             <h5>⚔️ Atacante</h5>
-            <div class="mini"><label>EVs en el ataque (0-252)</label><input id="aEV" type="number" min="0" max="252" value="252"></div>
+            <div class="mini"><label>SP en el ataque (0-32)</label><input id="aEV" type="number" min="0" max="32" value="32"></div>
             <div class="mini"><label>Naturaleza</label>
               <select id="aNat"><option value="1.1">Favorable (+10%)</option><option value="1">Neutra</option><option value="0.9">Desfavorable (−10%)</option></select></div>
             <div class="mini"><label>Objeto</label>
@@ -395,8 +396,8 @@
           </div>
           <div class="advcol">
             <h5>🛡️ Defensor</h5>
-            <div class="mini"><label>EVs en PS (0-252)</label><input id="dHP" type="number" min="0" max="252" value="0"></div>
-            <div class="mini"><label>EVs en la defensa (0-252)</label><input id="dEV" type="number" min="0" max="252" value="0"></div>
+            <div class="mini"><label>SP en PS (0-32)</label><input id="dHP" type="number" min="0" max="32" value="0"></div>
+            <div class="mini"><label>SP en la defensa (0-32)</label><input id="dEV" type="number" min="0" max="32" value="0"></div>
             <div class="mini"><label>Naturaleza defensiva</label>
               <select id="dNat"><option value="1">Neutra</option><option value="1.1">Favorable (+10%)</option><option value="0.9">Desfavorable (−10%)</option></select></div>
           </div>
@@ -681,10 +682,12 @@ Object.entries(DATA.moves||{}).sort((a,b)=>a[1].n.localeCompare(b[1].n)).forEach
 
 function findMon(v){ if(!v) return null; const s=monByName[v.trim().toLowerCase()]; return s?DATA.pokemon[s]:null; }
 function findMove(v){ if(!v) return null; return DATA.moves[moveByName[v.trim().toLowerCase()]]||null; }
-function calcStat(base,ev,level,nat,isHP){
-  ev=Math.max(0,Math.min(252,ev||0));
-  if(isHP) return Math.floor((2*base+31+Math.floor(ev/4))*level/100)+level+10;
-  return Math.floor((Math.floor((2*base+31+Math.floor(ev/4))*level/100)+5)*nat);
+// Sistema de Pokémon Champions: Stat Points (SP), máx 32/stat, sin IVs (fijos a 31)
+function calcStat(base,sp,level,nat,isHP){
+  sp=Math.max(0,Math.min(32,sp||0));
+  const scaled=Math.floor((2*base+31)*level/100);
+  if(isHP) return scaled+level+10+sp;
+  return Math.floor((scaled+5+sp)*nat);
 }
 function pokeRound(x){ const f=x-Math.floor(x); return f>0.5?Math.ceil(x):Math.floor(x); }
 function typeEff(moveType,defTypes){
@@ -871,14 +874,14 @@ function suggestSet(m){
   let role,ev,nat;
   if(off>=100 && off>=bulk/3.2){
     if(phys){ role='Atacante físico';
-      ev=fast?'252 Ataque · 252 Velocidad · 4 PS':'252 Ataque · 252 PS · 4 Velocidad';
+      ev=fast?'32 Ataque · 32 Velocidad · 2 PS':'32 Ataque · 32 PS · 2 Velocidad';
       nat=fast?'Alegre (+Vel · −At.Esp.)':'Firme (+Ataque · −At.Esp.)'; }
     else { role='Atacante especial';
-      ev=fast?'252 At. Esp. · 252 Velocidad · 4 PS':'252 At. Esp. · 252 PS · 4 Velocidad';
+      ev=fast?'32 At. Esp. · 32 Velocidad · 2 PS':'32 At. Esp. · 32 PS · 2 Velocidad';
       nat=fast?'Tímida (+Vel · −Ataque)':'Modesta (+At.Esp. · −Ataque)'; }
   } else { const pw=s.defense>=s['special-defense'];
     role=pw?'Muro físico / soporte':'Muro especial / soporte';
-    ev=pw?'252 PS · 252 Defensa · 4 Def. Esp.':'252 PS · 252 Def. Esp. · 4 Defensa';
+    ev=pw?'32 PS · 32 Defensa · 2 Def. Esp.':'32 PS · 32 Def. Esp. · 2 Defensa';
     nat=pw?'Osada (+Defensa · −Ataque)':'Calmada (+Def.Esp. · −Ataque)'; }
   return {role,ev,nat,phys};
 }
@@ -917,8 +920,8 @@ function buildTeam(){
     return `<div class="tbcard">
       <div class="thead"><img src="${m.img||PLACEHOLDER}" alt="">
         <div><div class="tn">${cap(m.name)}</div><span class="role">${sg.role}</span></div></div>
-      <div class="sug"><span class="k">EVs sugeridos</span>${sg.ev}</div>
-      <div class="sug"><span class="k">Naturaleza</span>${sg.nat}</div>
+      <div class="sug"><span class="k">Stat Points sugeridos (66 total)</span>${sg.ev}</div>
+      <div class="sug"><span class="k">Alineación (naturaleza)</span>${sg.nat}</div>
       <div class="sug"><span class="k">Movimientos STAB</span>${stab||'—'}</div>
       <div class="sug"><span class="k">Cobertura recomendada</span>${cov||'—'}</div>
     </div>`;}).join('');
